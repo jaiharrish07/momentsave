@@ -17,22 +17,22 @@
 
 #### Phase 2 — Backend implementation
 
-|Step|Rough effort|
-|---|---|
-|Project scaffold (TS, Express, Drizzle config)|2 hours|
-|Drizzle schema + first migration|2 hours|
-|Auth (register admin, login, session middleware)|4 hours|
-|RBAC middleware (admin / team_member checks)|1 hour|
-|Events CRUD (create, list mine, get one)|2 hours|
-|Event members (add, list, remove)|2 hours|
-|S3 presigned URL flow (get URL, confirm upload)|3 hours|
-|Photo listing (event-scoped, ownership-filtered)|2 hours|
-|Gallery CRUD (create, add/remove photos, set PIN)|3 hours|
-|Gallery publish endpoint|1 hour|
-|Public gallery: PIN verify + list photos|3 hours|
-|PIN rate limiting (Redis)|2 hours|
-|Cleanup job (orphaned pending photos)|1 hour|
-|Error handling, validation (Zod), logging|3 hours|
+| Step                                              | Rough effort |
+| ------------------------------------------------- | ------------ |
+| Project scaffold (TS, Express, Drizzle config)    | 2 hours      |
+| Drizzle schema + first migration                  | 2 hours      |
+| Auth (register admin, login, session middleware)  | 4 hours      |
+| RBAC middleware (admin / team_member checks)      | 1 hour       |
+| Events CRUD (create, list mine, get one)          | 2 hours      |
+| Event members (add, list, remove)                 | 2 hours      |
+| S3 presigned URL flow (get URL, confirm upload)   | 3 hours      |
+| Photo listing (event-scoped, ownership-filtered)  | 2 hours      |
+| Gallery CRUD (create, add/remove photos, set PIN) | 3 hours      |
+| Gallery publish endpoint                          | 1 hour       |
+| Public gallery: PIN verify + list photos          | 3 hours      |
+| PIN rate limiting (Redis)                         | 2 hours      |
+| Cleanup job (orphaned pending photos)             | 1 hour       |
+| Error handling, validation (Zod), logging         | 3 hours      |
 
 **Backend rough total: ~30 hours**
 
