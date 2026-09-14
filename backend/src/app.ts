@@ -8,6 +8,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { attachUser } from './middleware/auth';
 import { authRouter } from './modules/auth/auth.routes';
 import { usersRouter } from './modules/users/users.routes';
+import { eventsRouter } from './modules/events/events.routes';
 
 export function createApp(): Application {
   const app = express();
@@ -31,6 +32,7 @@ export function createApp(): Application {
 
   app.use('/api/auth', authRouter);
   app.use('/api/team-members', usersRouter);
+  app.use('/api/events', eventsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
