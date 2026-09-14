@@ -40,3 +40,7 @@ drizzle/meta/
 
 # Obsidian
 .obsidian/
+# Test artifacts (curl session files, request payloads)
+cookies.txt
+register.json
+*.cookies.txt
