@@ -7,6 +7,7 @@ import { logger } from './utils/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { attachUser } from './middleware/auth';
 import { authRouter } from './modules/auth/auth.routes';
+import { usersRouter } from './modules/users/users.routes';
 
 export function createApp(): Application {
   const app = express();
@@ -22,19 +23,15 @@ export function createApp(): Application {
 
   app.use(express.json({ limit: '100kb' }));
   app.use(cookieParser());
-
-  // Attach req.user if a valid session cookie is present.
   app.use(attachUser);
 
-  // Health check — public, no DB.
   app.get('/health', (req: Request, res: Response) => {
     res.json({ ok: true, uptime: process.uptime() });
   });
 
-  // API routes.
   app.use('/api/auth', authRouter);
+  app.use('/api/team-members', usersRouter);
 
-  // 404 + error handler must come last.
   app.use(notFoundHandler);
   app.use(errorHandler);
 
