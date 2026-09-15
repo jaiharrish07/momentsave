@@ -44,3 +44,6 @@ drizzle/meta/
 cookies.txt
 register.json
 *.cookies.txt
+
+# EB deploy artifacts
+deploy.zip

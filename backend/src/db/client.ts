@@ -3,8 +3,11 @@ import { Pool } from 'pg';
 import { env } from '../config/env';
 import * as schema from './schema';
 
+const isRemote = /amazonaws\.com|rds\.amazonaws/.test(env.DATABASE_URL);
+
 const pool = new Pool({
   connectionString: env.DATABASE_URL,
+  ssl: isRemote ? { rejectUnauthorized: false } : undefined,
   max: 10,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,

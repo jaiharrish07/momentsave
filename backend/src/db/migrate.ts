@@ -4,8 +4,19 @@ import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 
 async function main() {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DATABASE_URL not set');
+  }
+
+  // If connecting to RDS (or any managed Postgres with a non-public CA),
+  // we need SSL. rejectUnauthorized: false trusts the RDS CA implicitly.
+  // For strict production use, pass a downloaded RDS CA bundle instead.
+  const isRemote = /amazonaws\.com|rds\.amazonaws/.test(connectionString);
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
+    ssl: isRemote ? { rejectUnauthorized: false } : undefined,
   });
 
   const db = drizzle(pool);
