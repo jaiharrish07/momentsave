@@ -47,3 +47,7 @@ register.json
 
 # EB deploy artifacts
 deploy.zip
+
+# Test artifacts
+test.jpg
+test-*.jpg

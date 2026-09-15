@@ -9,6 +9,7 @@ import { attachUser } from './middleware/auth';
 import { authRouter } from './modules/auth/auth.routes';
 import { usersRouter } from './modules/users/users.routes';
 import { eventsRouter } from './modules/events/events.routes';
+import { eventPhotosRouter, photosRouter } from './modules/photos/photos.routes';
 
 export function createApp(): Application {
   const app = express();
@@ -33,6 +34,12 @@ export function createApp(): Application {
   app.use('/api/auth', authRouter);
   app.use('/api/team-members', usersRouter);
   app.use('/api/events', eventsRouter);
+
+  // Event-scoped photo routes: /api/events/:eventId/photos/...
+  app.use('/api/events/:eventId/photos', eventPhotosRouter);
+
+  // Photo-scoped routes: /api/photos/:photoId/...
+  app.use('/api/photos', photosRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
