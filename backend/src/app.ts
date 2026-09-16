@@ -11,9 +11,13 @@ import { usersRouter } from './modules/users/users.routes';
 import { eventsRouter } from './modules/events/events.routes';
 import { photosRouter } from './modules/photos/photos.routes';
 import { galleriesRouter } from './modules/galleries/galleries.routes';
+import { publicGalleryRouter } from './modules/public-gallery/public.routes';
 
 export function createApp(): Application {
   const app = express();
+
+  // Behind CloudFront + EB — trust proxy so req.ip and X-Forwarded-For resolve.
+  app.set('trust proxy', true);
 
   app.use(pinoHttp({ logger }));
 
@@ -37,6 +41,7 @@ export function createApp(): Application {
   app.use('/api/events', eventsRouter);
   app.use('/api/photos', photosRouter);
   app.use('/api/galleries', galleriesRouter);
+  app.use('/api/public/galleries', publicGalleryRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
