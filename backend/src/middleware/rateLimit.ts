@@ -21,7 +21,6 @@ export function createRateLimiter(opts: {
     try {
       const key = opts.keyFn(req);
 
-      // INCR returns the new value. If it's the first hit, set expiry.
       const count = await redis.incr(key);
       if (count === 1) {
         await redis.expire(key, opts.windowSeconds);
@@ -36,9 +35,7 @@ export function createRateLimiter(opts: {
 
       next();
     } catch (err) {
-      // If Redis is unreachable, fail open (allow the request) — matches
-      // our Redis-down policy for auth: don't block users, log loudly.
-      // A stricter policy would fail closed here.
+      // If Redis is unreachable, fail open (allow the request).
       next();
     }
   };
@@ -58,8 +55,30 @@ export const pinVerifyRateLimiter = createRateLimiter({
   windowSeconds: 15 * 60,
 });
 
+/**
+ * Login rate limiter: per IP per email.
+ * 5 attempts per 15 min.
+ *
+ * We read email from req.body — but Zod validation runs AFTER this middleware,
+ * so we have to safely handle malformed bodies. Missing/invalid email gets
+ * bucketed under a placeholder — a malformed-payload attacker can burn the
+ * "unknown-email" bucket but not affect real user buckets.
+ */
+export const loginRateLimiter = createRateLimiter({
+  keyFn: (req) => {
+    const ip = getClientIp(req);
+    const rawEmail = (req.body as { email?: unknown } | undefined)?.email;
+    const email =
+      typeof rawEmail === 'string' && rawEmail.length > 0
+        ? rawEmail.trim().toLowerCase()
+        : 'unknown-email';
+    return `rate:login:${ip}:${email}`;
+  },
+  limit: 5,
+  windowSeconds: 15 * 60,
+});
+
 function getClientIp(req: Request): string {
-  // Behind CloudFront + EB, the real IP is in X-Forwarded-For (first value).
   const xff = req.headers['x-forwarded-for'];
   if (typeof xff === 'string' && xff.length > 0) {
     return xff.split(',')[0].trim();

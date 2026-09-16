@@ -154,3 +154,24 @@ trizen-photo-platform/
 ├── docs/
 ├── README.md
 └── .gitignore
+
+
+```
+Browser
+   │
+   │ "Give me the gallery photos"
+   ▼
+CloudFront
+   │
+   │ "Forward this request to the origin"
+   ▼
+Elastic Beanstalk / Backend
+   │
+   │ "Fetch photos"
+   ▼
+PostgreSQL / S3
+```
+
+CloudFront is acting as a reverse proxy/CDN in this architecture.
+
+A reverse proxy is a proxy that sits in front of servers and receives requests on their behalf.

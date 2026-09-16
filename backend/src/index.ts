@@ -2,6 +2,8 @@
 import { env } from './config/env';
 import { logger } from './utils/logger';
 import { pool } from './db/client';
+import { redis } from './redis/client';
+import { startCleanupJob } from './jobs/cleanupPendingPhotos';
 
 const app = createApp();
 
@@ -9,32 +11,29 @@ const server = app.listen(env.PORT, () => {
   logger.info(`Server listening on port ${env.PORT}`);
 });
 
-/**
- * Graceful shutdown on SIGTERM (from process managers like EB, Docker).
- * Give in-flight requests time to finish, then close DB pool cleanly.
- */
-async function shutdown(signal: string) {
-  logger.info(`Received ${signal}, shutting down gracefully...`);
+const cleanupInterval = startCleanupJob();
 
-  server.close(() => {
-    logger.info('HTTP server closed.');
+async function shutdown(signal: string): Promise<void> {
+  logger.info({ signal }, 'Shutting down');
+  clearInterval(cleanupInterval);
+
+  server.close(async () => {
+    try {
+      await pool.end();
+      await redis.quit();
+      logger.info('Shutdown complete');
+      process.exit(0);
+    } catch (err) {
+      logger.error({ err }, 'Shutdown error');
+      process.exit(1);
+    }
   });
 
-  // Close DB pool after HTTP server stops accepting new requests.
-  await pool.end();
-  logger.info('Postgres pool closed.');
-
-  process.exit(0);
+  setTimeout(() => {
+    logger.error('Forced exit after 10s timeout');
+    process.exit(1);
+  }, 10_000).unref();
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));//for process managers like EB, Docker
-process.on('SIGINT', () => shutdown('SIGINT'));//for ctrl+c in local dev
-
-process.on('unhandledRejection', (reason) => {
-  logger.error({ reason }, 'Unhandled promise rejection');
-});
-
-process.on('uncaughtException', (err) => {
-  logger.error({ err }, 'Uncaught exception');
-  process.exit(1);
-});
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
