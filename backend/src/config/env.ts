@@ -1,31 +1,48 @@
 ﻿import 'dotenv/config';
 import { z } from 'zod';
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.coerce.number().int().positive().default(8080),
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    PORT: z.coerce.number().int().positive().default(8080),
 
-  DATABASE_URL: z.string().url(),
+    DATABASE_URL: z.string().url(),
 
-  REDIS_URL: z.string().url(),
+    // One of two Redis configs must be present:
+    //   * REDIS_URL — ioredis over TCP (rediss:// for Upstash, redis:// for local Docker)
+    //   * UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN — @upstash/redis over HTTPS
+    // When both are set, the HTTP client wins (recommended for production
+    // WAN links — no persistent TCP means no idle-drop timeouts).
+    REDIS_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_URL: z.string().url().optional(),
+    UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
 
-  AWS_REGION: z.string().min(1),
-  AWS_ACCESS_KEY_ID: z.string().min(1),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1),
-  S3_BUCKET_NAME: z.string().min(1),
+    AWS_REGION: z.string().min(1),
+    AWS_ACCESS_KEY_ID: z.string().min(1),
+    AWS_SECRET_ACCESS_KEY: z.string().min(1),
+    S3_BUCKET_NAME: z.string().min(1),
 
-  SESSION_COOKIE_SECRET: z.string().min(32, {
-    message: 'SESSION_COOKIE_SECRET must be at least 32 characters',
-  }),
-  SESSION_COOKIE_NAME: z.string().min(1),
-  GALLERY_SESSION_COOKIE_NAME: z.string().min(1),
+    SESSION_COOKIE_SECRET: z.string().min(32, {
+      message: 'SESSION_COOKIE_SECRET must be at least 32 characters',
+    }),
+    SESSION_COOKIE_NAME: z.string().min(1),
+    GALLERY_SESSION_COOKIE_NAME: z.string().min(1),
 
-  FRONTEND_URL: z.string().url(),
+    FRONTEND_URL: z.string().url(),
 
-  BCRYPT_COST: z.coerce.number().int().min(10).max(15).default(12),
-  PIN_LENGTH: z.coerce.number().int().min(4).max(10).default(6),
-  MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
-});
+    BCRYPT_COST: z.coerce.number().int().min(10).max(15).default(12),
+    PIN_LENGTH: z.coerce.number().int().min(4).max(10).default(6),
+    MAX_FILE_SIZE_BYTES: z.coerce.number().int().positive().default(20 * 1024 * 1024),
+  })
+  .refine(
+    (v) =>
+      (v.UPSTASH_REDIS_REST_URL && v.UPSTASH_REDIS_REST_TOKEN) || v.REDIS_URL,
+    {
+      message:
+        'Configure Redis: set either REDIS_URL, or both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.',
+      path: ['REDIS_URL'],
+    }
+  );
 
 const parseResult = envSchema.safeParse(process.env);
 
