@@ -9,6 +9,12 @@ import * as usersController from './users.controller';
 
 export const usersRouter = Router();
 
+usersRouter.get(
+  '/',
+  requireAdmin,
+  usersController.listTeamMembers
+);
+
 usersRouter.post(
   '/',
   requireAdmin,

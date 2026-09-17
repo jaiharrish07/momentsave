@@ -1,4 +1,4 @@
-﻿import { eq, and } from 'drizzle-orm';
+import { eq, and, or, ilike, sql, desc } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { users } from '../../db/schema';
 import { hashSecret } from '../../utils/crypto';
@@ -9,11 +9,14 @@ import type { CreateTeamMemberInput } from './users.schemas';
 /**
  * Admin creates a team member account.
  *
- * The admin (session user) sets the initial password. The team member later
- * signs in with that password. Password reset flow is admin-initiated
- * (see resetTeamMemberPassword) — no self-service email reset in scope.
+ * The admin (session user) sets the initial password AND becomes the owner
+ * of the team member (users.created_by_admin_id). Only that admin can list,
+ * reset the password of, or assign this team member to events.
  */
-export async function createTeamMember(input: CreateTeamMemberInput): Promise<PublicUser> {
+export async function createTeamMember(
+  adminId: bigint,
+  input: CreateTeamMemberInput
+): Promise<PublicUser> {
   const passwordHash = await hashSecret(input.password);
 
   try {
@@ -24,6 +27,7 @@ export async function createTeamMember(input: CreateTeamMemberInput): Promise<Pu
         email: input.email,
         passwordHash,
         role: 'team_member',
+        createdByAdminId: adminId,
       })
       .returning({
         userId: users.userId,
@@ -51,19 +55,59 @@ export async function createTeamMember(input: CreateTeamMemberInput): Promise<Pu
 }
 
 /**
+ * List team members owned by this admin.
+ *
+ * Optional `search` filters by name or email (case-insensitive substring).
+ * Trimmed empty search is treated as "no filter".
+ */
+export async function listMyTeamMembers(
+  adminId: bigint,
+  search?: string
+): Promise<PublicUser[]> {
+  const trimmed = search?.trim();
+  const filter =
+    trimmed && trimmed.length > 0
+      ? and(
+          eq(users.createdByAdminId, adminId),
+          eq(users.role, 'team_member'),
+          or(ilike(users.name, `%${trimmed}%`), ilike(users.email, `%${trimmed}%`))
+        )
+      : and(eq(users.createdByAdminId, adminId), eq(users.role, 'team_member'));
+
+  const rows = await db
+    .select({
+      userId: users.userId,
+      name: users.name,
+      email: users.email,
+      createdAt: users.createdAt,
+    })
+    .from(users)
+    .where(filter)
+    .orderBy(desc(users.createdAt));
+
+  return rows.map((r) => ({
+    user_id: r.userId.toString(),
+    name: r.name,
+    email: r.email,
+    role: 'team_member' as const,
+    created_at: r.createdAt,
+  }));
+}
+
+/**
  * Admin resets a team member's password.
  *
  * Ownership check:
  *   - Target user must have role = 'team_member'.
- *   - Admins cannot reset other admins' passwords via this endpoint.
- *   - If the target doesnt exist OR is not a team_member, we return 404
- *     (hide the distinction — no admin-role enumeration).
+ *   - Target user must have been created by THIS admin.
+ *   - Otherwise 404 (hide the distinction between "doesn't exist" and
+ *     "belongs to someone else" — no cross-admin enumeration).
  *
  * Note: This does NOT invalidate the target's existing sessions.
- * If we wanted to force-log-out on reset, we'd iterate Redis for their
- * sessions and delete them. Deferred as known limitation.
+ * Deferred as known limitation.
  */
 export async function resetTeamMemberPassword(
+  adminId: bigint,
   teamMemberId: bigint,
   newPassword: string
 ): Promise<void> {
@@ -72,12 +116,41 @@ export async function resetTeamMemberPassword(
   const result = await db
     .update(users)
     .set({ passwordHash })
-    .where(and(eq(users.userId, teamMemberId), eq(users.role, 'team_member')))
+    .where(
+      and(
+        eq(users.userId, teamMemberId),
+        eq(users.role, 'team_member'),
+        eq(users.createdByAdminId, adminId)
+      )
+    )
     .returning({ userId: users.userId });
 
   if (result.length === 0) {
     throw notFound('Team member not found');
   }
+}
+
+/**
+ * Verify a team member is owned by this admin.
+ * Used from other modules (e.g. events) to reject cross-admin assignment.
+ * Returns true iff the target exists, is a team_member, and belongs to this admin.
+ */
+export async function isTeamMemberOwnedByAdmin(
+  adminId: bigint,
+  teamMemberId: bigint
+): Promise<boolean> {
+  const [row] = await db
+    .select({ userId: users.userId })
+    .from(users)
+    .where(
+      and(
+        eq(users.userId, teamMemberId),
+        eq(users.role, 'team_member'),
+        eq(users.createdByAdminId, adminId)
+      )
+    )
+    .limit(1);
+  return !!row;
 }
 
 /**

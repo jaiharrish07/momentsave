@@ -38,3 +38,10 @@ publicGalleryRouter.get(
   requireGallerySession,
   publicController.downloadPhoto
 );
+
+publicGalleryRouter.get(
+  '/:publicToken/photos/:photoId/preview-url',
+  validate(downloadPhotoSchema),
+  requireGallerySession,
+  publicController.previewPhoto
+);

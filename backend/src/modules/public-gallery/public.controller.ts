@@ -75,7 +75,8 @@ export async function listPhotos(req: Request, res: Response, next: NextFunction
 
 /**
  * GET /api/public/galleries/:publicToken/photos/:photoId/download
- * Session-gated — returns a short-lived presigned S3 URL.
+ * Session-gated — returns a short-lived presigned S3 URL that forces
+ * the browser to download (Content-Disposition: attachment).
  */
 export async function downloadPhoto(req: Request, res: Response, next: NextFunction) {
   try {
@@ -83,6 +84,23 @@ export async function downloadPhoto(req: Request, res: Response, next: NextFunct
     const photoId = parseBigIntParam(req.params.photoId, 'photoId');
 
     const result = await publicService.getPhotoDownloadUrl(publicToken, photoId);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/public/galleries/:publicToken/photos/:photoId/preview-url
+ * Session-gated — returns a short-lived presigned S3 URL for inline
+ * viewing (thumbnails, lightbox). No attachment header.
+ */
+export async function previewPhoto(req: Request, res: Response, next: NextFunction) {
+  try {
+    const publicToken = req.params.publicToken as string;
+    const photoId = parseBigIntParam(req.params.photoId, 'photoId');
+
+    const result = await publicService.getPhotoPreviewUrl(publicToken, photoId);
     res.json({ data: result });
   } catch (err) {
     next(err);

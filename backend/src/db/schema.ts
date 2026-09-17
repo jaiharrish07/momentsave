@@ -14,6 +14,10 @@ import { sql } from 'drizzle-orm';
 /**
  * users
  * Both admins and team members. Discriminated by `role`.
+ *
+ * `createdByAdminId` scopes team members to the admin who created them.
+ * NULL for admins (self-registered). Enforced non-null for team_member rows
+ * via a CHECK constraint below.
  */
 export const users = pgTable(
   'users',
@@ -25,6 +29,7 @@ export const users = pgTable(
     email: text('email').notNull().unique(),
     passwordHash: text('password_hash').notNull(),
     role: text('role').notNull(),
+    createdByAdminId: bigint('created_by_admin_id', { mode: 'bigint' }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -33,6 +38,14 @@ export const users = pgTable(
     roleCheck: check(
       'users_role_check',
       sql`${table.role} IN ('admin', 'team_member')`
+    ),
+    createdBySelfFk: foreignKey({
+      columns: [table.createdByAdminId],
+      foreignColumns: [table.userId],
+      name: 'users_created_by_admin_id_fk',
+    }).onDelete('restrict'),
+    createdByAdminIdx: index('idx_users_created_by_admin_id').on(
+      table.createdByAdminId
     ),
   })
 );

@@ -60,7 +60,7 @@ export function startCleanupJob(): NodeJS.Timeout {
     cleanupPendingPhotos().catch((err) => {
       logger.error({ err }, 'Initial cleanup run failed');
     });
-  }, 60 * 1000); // 1 min after boot
+  }, 60 * 1000); // 1 min after boot and Date.now() returns the current time in milliseconds so 1000 multplied by 60 gives us 1 minute in milliseconds.
 
   const interval = setInterval(() => {
     cleanupPendingPhotos().catch((err) => {

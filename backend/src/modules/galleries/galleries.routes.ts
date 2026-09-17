@@ -7,6 +7,8 @@ import {
   removePhotoSchema,
   galleryIdParamSchema,
 } from './galleries.schemas';
+import { z } from 'zod';
+
 import * as galleriesController from './galleries.controller';
 
 /**
@@ -14,6 +16,13 @@ import * as galleriesController from './galleries.controller';
  * Wired under eventsRouter with mergeParams so :eventId is visible.
  */
 export const eventGalleryRouter = Router({ mergeParams: true });
+
+eventGalleryRouter.get(
+  '/',
+  requireAdmin,
+  validate(z.object({ params: z.object({ eventId: z.string().regex(/^\d+$/, 'eventId must be a positive integer') }) })),
+  galleriesController.getGalleryForEvent
+);
 
 eventGalleryRouter.post(
   '/',
@@ -60,4 +69,11 @@ galleriesRouter.post(
   requireAdmin,
   validate(galleryIdParamSchema),
   galleriesController.publish
+);
+
+galleriesRouter.get(
+  '/:galleryId/photos',
+  requireAdmin,
+  validate(galleryIdParamSchema),
+  galleriesController.listGalleryPhotos
 );

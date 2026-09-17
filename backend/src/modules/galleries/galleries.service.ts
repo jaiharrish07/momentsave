@@ -109,6 +109,35 @@ export async function getGallery(
  *
  * Photos already in the gallery are silently ignored (idempotent add).
  */
+
+/**
+ * Get the gallery for a specific event (owner check).
+ * Returns null if the admin doesn't own the event OR no gallery exists.
+ */
+export async function getGalleryByEventId(
+  adminId: bigint,
+  eventId: bigint
+): Promise<PublicGallery | null> {
+  const [event] = await db
+    .select({ eventId: events.eventId })
+    .from(events)
+    .where(and(eq(events.eventId, eventId), eq(events.createdBy, adminId)))
+    .limit(1);
+
+  if (!event) return null;
+
+  const [row] = await db
+    .select()
+    .from(galleries)
+    .where(eq(galleries.eventId, eventId))
+    .limit(1);
+
+  if (!row) return null;
+
+  const photoCount = await countGalleryPhotos(row.galleryId);
+  return toPublicGallery(row, photoCount);
+}
+
 export async function addPhotosToGallery(
   adminId: bigint,
   galleryId: bigint,
@@ -272,6 +301,42 @@ async function countGalleryPhotos(galleryId: bigint): Promise<number> {
     .from(galleryPhotos)
     .where(eq(galleryPhotos.galleryId, galleryId));
   return count;
+}
+
+/**
+ * List all photos currently in a gallery.
+ * Admin owns the gallery. Returns full photo metadata.
+ */
+export async function listPhotosInGalleryForAdmin(
+  adminId: bigint,
+  galleryId: bigint
+): Promise<{ photo_id: string; filename: string; file_size: string; content_type: string }[]> {
+  const [gallery] = await db
+    .select({ galleryId: galleries.galleryId })
+    .from(galleries)
+    .where(and(eq(galleries.galleryId, galleryId), eq(galleries.createdBy, adminId)))
+    .limit(1);
+
+  if (!gallery) throw notFound('Gallery not found');
+
+  const rows = await db
+    .select({
+      photoId: photos.photoId,
+      filename: photos.filename,
+      fileSize: photos.fileSize,
+      contentType: photos.contentType,
+    })
+    .from(galleryPhotos)
+    .innerJoin(photos, eq(photos.photoId, galleryPhotos.photoId))
+    .where(eq(galleryPhotos.galleryId, galleryId))
+    .orderBy(desc(galleryPhotos.addedAt));
+
+  return rows.map((r) => ({
+    photo_id: r.photoId.toString(),
+    filename: r.filename,
+    file_size: r.fileSize.toString(),
+    content_type: r.contentType,
+  }));
 }
 
 function toPublicGallery(

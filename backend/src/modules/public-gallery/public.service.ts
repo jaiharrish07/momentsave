@@ -118,11 +118,57 @@ export async function listPhotosInGallery(
 /**
  * Generate a time-limited presigned S3 URL for downloading one photo.
  * Requires the photo to be in this gallery AND uploaded.
+ * URL has Content-Disposition: attachment so the browser saves the file.
  */
 export async function getPhotoDownloadUrl(
   publicToken: string,
   photoId: bigint
 ): Promise<{ download_url: string; expires_at: Date; filename: string }> {
+  const row = await getGalleryPhotoAsset(publicToken, photoId);
+
+  const expiresInSeconds = 3600; // 1 hour
+  const downloadUrl = await generatePresignedDownloadUrl(
+    row.s3Key,
+    expiresInSeconds,
+    row.filename
+  );
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+
+  return {
+    download_url: downloadUrl,
+    expires_at: expiresAt,
+    filename: row.filename,
+  };
+}
+
+/**
+ * Generate a presigned URL for INLINE viewing of a public gallery photo
+ * (thumbnails / lightbox). No Content-Disposition, so the browser renders
+ * the image instead of downloading it.
+ * Same authorization as getPhotoDownloadUrl (gallery must be published and
+ * the photo must belong to it).
+ */
+export async function getPhotoPreviewUrl(
+  publicToken: string,
+  photoId: bigint
+): Promise<{ download_url: string; expires_at: Date; filename: string }> {
+  const row = await getGalleryPhotoAsset(publicToken, photoId);
+
+  const expiresInSeconds = 3600;
+  const downloadUrl = await generatePresignedDownloadUrl(row.s3Key, expiresInSeconds);
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+
+  return {
+    download_url: downloadUrl,
+    expires_at: expiresAt,
+    filename: row.filename,
+  };
+}
+
+async function getGalleryPhotoAsset(
+  publicToken: string,
+  photoId: bigint
+): Promise<{ s3Key: string; filename: string }> {
   const [row] = await db
     .select({
       s3Key: photos.s3Key,
@@ -142,14 +188,5 @@ export async function getPhotoDownloadUrl(
     .limit(1);
 
   if (!row) throw notFound('Photo not found');
-
-  const expiresInSeconds = 3600; // 1 hour
-  const downloadUrl = await generatePresignedDownloadUrl(row.s3Key, expiresInSeconds);
-  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
-
-  return {
-    download_url: downloadUrl,
-    expires_at: expiresAt,
-    filename: row.filename,
-  };
+  return row;
 }

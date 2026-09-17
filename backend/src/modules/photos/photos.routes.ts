@@ -7,6 +7,7 @@ import {
   eventIdParamSchema,
 } from './photos.schemas';
 import * as photosController from './photos.controller';
+import { z } from 'zod';
 
 /**
  * Two routers here — because these endpoints have different URL shapes:
@@ -52,4 +53,18 @@ photosRouter.post(
   requireTeamMember,
   validate(confirmUploadSchema),
   photosController.confirmUpload
+);
+
+photosRouter.get(
+  '/:photoId/preview-url',
+  requireAuth,
+  validate(z.object({ params: z.object({ photoId: z.string().regex(/^\d+$/, 'photoId must be a positive integer') }) })),
+  photosController.getPreviewUrl
+);
+
+photosRouter.get(
+  '/:photoId/download-url',
+  requireAuth,
+  validate(z.object({ params: z.object({ photoId: z.string().regex(/^\d+$/, 'photoId must be a positive integer') }) })),
+  photosController.getDownloadUrl
 );

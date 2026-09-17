@@ -85,18 +85,36 @@ export async function deleteObject(key: string): Promise<void> {
 
 /**
  * Generate a presigned URL for downloading an object.
- * Used by the public gallery module later — not photos directly.
+ * If `downloadFilename` is passed, S3 returns Content-Disposition: attachment
+ * so browsers download the file instead of displaying it inline. This is
+ * required because cross-origin `<a download>` attributes are ignored by
+ * browsers — the server must set the header.
  */
 export async function generatePresignedDownloadUrl(
   key: string,
-  expiresInSeconds = 3600
+  expiresInSeconds = 3600,
+  downloadFilename?: string
 ): Promise<string> {
   const { GetObjectCommand } = await import("@aws-sdk/client-s3");
   const command = new GetObjectCommand({
     Bucket: env.S3_BUCKET_NAME,
     Key: key,
+    ...(downloadFilename
+      ? {
+          ResponseContentDisposition: `attachment; filename="${encodeRFC5987ValueChars(
+            downloadFilename
+          )}"`,
+        }
+      : {}),
   });
   return getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+}
+
+// Encode a filename for a Content-Disposition header value. Strips CR/LF and
+// escapes double-quotes so a filename with quotes or newlines can't break out
+// of the header. Non-ASCII filenames still work because S3 percent-encodes.
+function encodeRFC5987ValueChars(value: string): string {
+  return value.replace(/[\r\n"\\]/g, "_");
 }
 
 function isS3NotFound(err: unknown): boolean {

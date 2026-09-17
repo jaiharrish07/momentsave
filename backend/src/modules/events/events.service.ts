@@ -166,7 +166,9 @@ export async function getEventForUser(
  *
  * Multi-hop authorization:
  *   1. Admin must own the event  → else 404 (hides existence)
- *   2. Target user must exist AND have role team_member  → else 404
+ *   2. Target user must exist AND have role team_member
+ *      AND have been created by THIS admin  → else 404
+ *      (prevents admins from adding team members belonging to another admin)
  *   3. Not already assigned  → else 409
  */
 export async function addMemberToEvent(
@@ -185,11 +187,17 @@ export async function addMemberToEvent(
     throw notFound('Event not found');
   }
 
-  // Verify target user exists and is a team_member.
+  // Verify target user is a team_member owned by this admin.
   const [target] = await db
     .select({ userId: users.userId })
     .from(users)
-    .where(and(eq(users.userId, targetUserId), eq(users.role, 'team_member')))
+    .where(
+      and(
+        eq(users.userId, targetUserId),
+        eq(users.role, 'team_member'),
+        eq(users.createdByAdminId, adminId)
+      )
+    )
     .limit(1);
 
   if (!target) {

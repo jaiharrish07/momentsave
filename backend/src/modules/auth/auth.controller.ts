@@ -1,6 +1,9 @@
 ﻿import { Request, Response, NextFunction } from 'express';
+import { eq } from 'drizzle-orm';
 import { env } from '../../config/env';
 import { unauthorized } from '../../utils/errors';
+import { db } from '../../db/client';
+import { users } from '../../db/schema';
 import * as authService from './auth.service';
 
 /**
@@ -79,19 +82,38 @@ export async function logout(req: Request, res: Response, next: NextFunction) {
 
 /**
  * GET /api/auth/me
- * Returns the currently authenticated user, from req.user.
- * Requires an authenticated user.
+ * Returns the full authenticated user (looked up from DB), matching the
+ * shape returned by login/register so the client can render name, email,
+ * and role after a page refresh.
  */
 export async function whoami(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) {
       throw unauthorized();
     }
+    const userId = BigInt(req.user.userId);
+    const [row] = await db
+      .select({
+        userId: users.userId,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(eq(users.userId, userId))
+      .limit(1);
+
+    if (!row) throw unauthorized();
+
     res.json({
       data: {
         user: {
-          user_id: req.user.userId,
-          role: req.user.role,
+          user_id: row.userId.toString(),
+          name: row.name,
+          email: row.email,
+          role: row.role as 'admin' | 'team_member',
+          created_at: row.createdAt,
         },
       },
     });

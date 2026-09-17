@@ -103,3 +103,42 @@ export async function listAllEventPhotos(req: Request, res: Response, next: Next
     next(err);
   }
 }
+
+/**
+ * GET /api/photos/:photoId/preview-url
+ * Returns a presigned S3 URL for INLINE viewing (thumbnails, lightbox).
+ * No Content-Disposition — the browser renders the image.
+ */
+export async function getPreviewUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw unauthorized();
+    const userId = BigInt(req.user.userId);
+    const role = req.user.role;
+    const photoId = parseBigIntParam(req.params.photoId, 'photoId');
+
+    const result = await photosService.getPhotoPreviewUrl(userId, role, photoId);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/photos/:photoId/download-url
+ * Returns a presigned S3 URL that forces the browser to DOWNLOAD the file
+ * (Content-Disposition: attachment). Used by admin + team_member download
+ * buttons.
+ */
+export async function getDownloadUrl(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw unauthorized();
+    const userId = BigInt(req.user.userId);
+    const role = req.user.role;
+    const photoId = parseBigIntParam(req.params.photoId, 'photoId');
+
+    const result = await photosService.getPhotoDownloadUrl(userId, role, photoId);
+    res.json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}

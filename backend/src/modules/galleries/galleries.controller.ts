@@ -2,7 +2,7 @@
 import { unauthorized } from '../../utils/errors';
 import { parseBigIntParam } from '../../utils/params';
 import * as galleriesService from './galleries.service';
-
+import { notFound } from '../../utils/errors';
 /**
  * POST /api/events/:eventId/gallery
  * Admin creates a gallery. PIN returned once in the response body.
@@ -49,6 +49,27 @@ export async function getGallery(req: Request, res: Response, next: NextFunction
  * POST /api/galleries/:galleryId/photos
  * Bulk add photos, all-or-nothing.
  */
+
+/**
+ * GET /api/events/:eventId/gallery
+ * Fetch the gallery for a specific event (nested route).
+ */
+export async function getGalleryForEvent(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw unauthorized();
+    const adminId = BigInt(req.user.userId);
+    const eventId = parseBigIntParam(req.params.eventId, 'eventId');
+
+    const gallery = await galleriesService.getGalleryByEventId(adminId, eventId);
+    if (!gallery) throw notFound('Gallery not found');
+
+    res.json({ data: { gallery } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+
 export async function addPhotos(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw unauthorized();
@@ -113,6 +134,23 @@ export async function publish(req: Request, res: Response, next: NextFunction) {
 
     const gallery = await galleriesService.publishGallery(adminId, galleryId);
     res.json({ data: { gallery } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/galleries/:galleryId/photos
+ * List photos currently in the gallery (admin view).
+ */
+export async function listGalleryPhotos(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.user) throw unauthorized();
+    const adminId = BigInt(req.user.userId);
+    const galleryId = parseBigIntParam(req.params.galleryId, 'galleryId');
+
+    const photos = await galleriesService.listPhotosInGalleryForAdmin(adminId, galleryId);
+    res.json({ data: { photos } });
   } catch (err) {
     next(err);
   }
