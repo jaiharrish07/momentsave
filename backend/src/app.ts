@@ -21,9 +21,22 @@ export function createApp(): Application {
 
   app.use(pinoHttp({ logger }));
 
+    const allowedOrigins = [
+    env.FRONTEND_URL,
+    "http://localhost:3000",
+  ];
+
   app.use(
     cors({
-      origin: env.FRONTEND_URL,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        // Also allow any Vercel preview URL for this project
+        if (/^https:\/\/momentsave-.*\.vercel\.app$/.test(origin)) {
+          return callback(null, true);
+        }
+        callback(new Error("Not allowed by CORS"));
+      },
       credentials: true,
     })
   );
