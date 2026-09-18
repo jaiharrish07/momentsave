@@ -13,7 +13,9 @@ function gallerySessionCookieOptions() {
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? ('strict' as const) : ('lax' as const),
+    // 'none' + secure so the cookie is sent on cross-site XHRs from the
+    // Vercel frontend to the CloudFront backend. See auth.controller notes.
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
     maxAge: 2 * 60 * 60 * 1000, // 2 hours
     path: '/',
   };

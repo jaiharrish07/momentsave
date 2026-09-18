@@ -11,7 +11,11 @@ import * as authService from './auth.service';
  *
  * httpOnly:  JavaScript on the page cant read the cookie (XSS defense)
  * secure:    only sent over HTTPS in production. In dev over http, we relax it.
- * sameSite:  strict in prod (CSRF defense). lax in dev to keep API calls working.
+ * sameSite:  'none' in prod because the frontend (Vercel) and backend
+ *            (CloudFront) are on different sites and 'strict' would block
+ *            the cookie on every cross-site XHR. 'none' requires secure=true,
+ *            which is set below in prod. 'lax' in dev keeps API calls
+ *            working over localhost.
  * maxAge:    7 days — matches session TTL in Redis.
  */
 function cookieOptions() {
@@ -19,7 +23,7 @@ function cookieOptions() {
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'strict' as const : 'lax' as const,
+    sameSite: isProd ? ('none' as const) : ('lax' as const),
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
     path: '/',
   };
