@@ -19,6 +19,12 @@ export const s3 = new S3Client({
     accessKeyId: env.AWS_ACCESS_KEY_ID,
     secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
   },
+  // AWS SDK v3 (>=3.729) added default request checksums, which bake a
+  // `x-amz-checksum-crc32=...` requirement into presigned PUT URLs. The
+  // browser can't send that header, so S3 rejects the upload with
+  // BadDigest. Only add checksums when the operation actually needs one.
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 /**
