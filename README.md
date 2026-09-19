@@ -235,5 +235,4 @@ npm test
 
 ## Author
 
-**Jai** — M.Tech Integrated Software Engineering
-VIT Chennai (24MIS1054)
+**Jaiharrish N V**
